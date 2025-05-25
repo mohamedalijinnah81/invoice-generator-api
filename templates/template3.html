@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="{{locale}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{translations.invoice}} {{invoiceNumber}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #1a1a1a;
+            padding: 20px;
+        }
+        
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #2d2d2d;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 50px 40px;
+            position: relative;
+        }
+        
+        .header::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 200px;
+            height: 200px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            transform: translate(50%, -50%);
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 2;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            max-width: 120px;
+            max-height: 60px;
+            object-fit: contain;
+            margin-right: 20px;
+            filter: brightness(0) invert(1);
+        }
+        
+        .company-name {
+            font-size: 32px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .invoice-title {
+            font-size: 48px;
+            font-weight: 100;
+            text-transform: uppercase;
+            letter-spacing: 8px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+            background: #f8f9fa;
+            color: #2d2d2d;
+        }
+        
+        .invoice-meta {
+            display: flex;
+            justify-content: space-between;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .meta-group {
+            text-align: center;
+        }
+        
+        .meta-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #999;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .meta-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ff6b6b;
+        }
+        
+        .parties-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 50px;
+        }
+        
+        .party {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        
+        .party::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+        }
+        
+        .party-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+        
+        .party-info {
+            line-height: 1.8;
+            color: #555;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+        
+        .items-table th {
+            background: #2d2d2d;
+            color: white;
+            padding: 20px 15px;
+            text-align: left;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 12px;
+        }
+        
+        .items-table td {
+            padding: 20px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .items-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .item-name {
+            font-weight: 600;
+            color: #2d2d2d;
+            margin-bottom: 5px;
+        }
+        
+        .item-description {
+            font-size: 14px;
+            color: #777;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 40px;
+        }
+        
+        .totals {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            min-width: 350px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .totals-row:last-child {
+            border-bottom: none;
+        }
+        
+        .totals-row.total {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            font-weight: 700;
+            font-size: 24px;
+            padding: 25px;
+            margin: 20px -30px -30px -30px;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .notes-section {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .notes-title {
+            font-weight: 700;
+            color: #ff6b6b;
+            margin-bottom: 15px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .footer {
+            background: #2d2d2d;
+            color: #ccc;
+            text-align: center;
+            padding: 30px;
+            font-size: 14px;
+        }
+        
+        .footer p {
+            margin-bottom: 5px;
+        }
+        
+        @media print {
+            body { 
+                background: white; 
+                padding: 0;
+            }
+            .invoice-container { 
+                box-shadow: none;
+                border-radius: 0;
+                background: white;
+            }
+            .header, .content {
+                background: white;
+                color: #333;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .invoice-meta {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .parties-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .totals {
+                min-width: auto;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="logo-section">
+                    {{#if hasLogo}}
+                    <img src="{{companyLogo}}" alt="Company Logo" class="logo">
+                    {{/if}}
+                    <div class="company-name">{{companyName}}</div>
+                </div>
+                <div class="invoice-title">{{translations.invoice}}</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Invoice Meta Information -->
+            <div class="invoice-meta">
+                <div class="meta-group">
+                    <div class="meta-label">{{translations.invoiceNumber}}</div>
+                    <div class="meta-value">{{invoiceNumber}}</div>
+                </div>
+                <div class="meta-group">
+                    <div class="meta-label">{{translations.date}}</div>
+                    <div class="meta-value">{{formatDate date locale}}</div>
+                </div>
+                {{#if hasDueDate}}
+                <div class="meta-group">
+                    <div class="meta-label">{{translations.dueDate}}</div>
+                    <div class="meta-value">{{formatDate dueDate locale}}</div>
+                </div>
+                {{/if}}
+            </div>
+
+            <!-- Parties Information -->
+            <div class="parties-container">
+                {{#if hasSeller}}
+                <div class="party">
+                    <div class="party-title">{{translations.from}}</div>
+                    <div class="party-info">
+                        <strong>{{sellerCompany.name}}</strong><br>
+                        {{#if sellerCompany.address}}{{sellerCompany.address}}<br>{{/if}}
+                        {{#if sellerCompany.phone}}{{translations.phone}}: {{sellerCompany.phone}}<br>{{/if}}
+                        {{#if sellerCompany.email}}{{translations.email}}: {{sellerCompany.email}}<br>{{/if}}
+                        {{#if sellerCompany.taxNumber}}{{translations.taxNumber}}: {{sellerCompany.taxNumber}}<br>{{/if}}
+                        {{#if sellerCompany.vatNumber}}{{translations.vatNumber}}: {{sellerCompany.vatNumber}}<br>{{/if}}
+                    </div>
+                </div>
+                {{/if}}
+                
+                {{#if hasBuyer}}
+                <div class="party">
+                    <div class="party-title">{{translations.to}}</div>
+                    <div class="party-info">
+                        <strong>{{buyerCompany.name}}</strong><br>
+                        {{#if buyerCompany.address}}{{buyerCompany.address}}<br>{{/if}}
+                        {{#if buyerCompany.phone}}{{translations.phone}}: {{buyerCompany.phone}}<br>{{/if}}
+                        {{#if buyerCompany.email}}{{translations.email}}: {{buyerCompany.email}}<br>{{/if}}
+                        {{#if buyerCompany.taxNumber}}{{translations.taxNumber}}: {{buyerCompany.taxNumber}}<br>{{/if}}
+                        {{#if buyerCompany.vatNumber}}{{translations.vatNumber}}: {{buyerCompany.vatNumber}}<br>{{/if}}
+                    </div>
+                </div>
+                {{/if}}
+            </div>
+
+            <!-- Items Table -->
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th>{{translations.description}}</th>
+                        <th class="text-center">{{translations.quantity}}</th>
+                        <th class="text-right">{{translations.unitPrice}}</th>
+                        <th class="text-right">{{translations.amount}}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each items}}
+                    <tr>
+                        <td>
+                            <div class="item-name">{{name}}</div>
+                            {{#if description}}<div class="item-description">{{description}}</div>{{/if}}
+                        </td>
+                        <td class="text-center">{{quantity}}</td>
+                        <td class="text-right">{{formatCurrency price ../currency}}</td>
+                        <td class="text-right"><strong>{{formatCurrency lineTotal ../currency}}</strong></td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+
+            <!-- Totals -->
+            <div class="totals-section">
+                <div class="totals">
+                    <div class="totals-row">
+                        <span>{{translations.subtotal}}:</span>
+                        <span>{{formatCurrency subtotal currency}}</span>
+                    </div>
+                    {{#if hasShipping}}
+                    <div class="totals-row">
+                        <span>{{translations.shipping}}:</span>
+                        <span>{{formatCurrency shippingAmount currency}}</span>
+                    </div>
+                    {{/if}}
+                    {{#if hasServiceFee}}
+                    <div class="totals-row">
+                        <span>{{translations.serviceFee}}:</span>
+                        <span>{{formatCurrency serviceFee currency}}</span>
+                    </div>
+                    {{/if}}
+                    <div class="totals-row">
+                        <span>{{translations.tax}} ({{taxPercent}}%):</span>
+                        <span>{{formatCurrency taxAmount currency}}</span>
+                    </div>
+                    <div class="totals-row total">
+                        <span>{{translations.total}}:</span>
+                        <span>{{formatCurrency total currency}}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes and Payment Terms -->
+            {{#if hasNotes}}
+            <div class="notes-section">
+                <div class="notes-title">{{translations.notes}}</div>
+                <div>{{notes}}</div>
+            </div>
+            {{/if}}
+
+            {{#if hasPaymentTerms}}
+            <div class="notes-section">
+                <div class="notes-title">{{translations.paymentTerms}}</div>
+                <div>{{paymentTerms}}</div>
+            </div>
+            {{/if}}
+
+            {{#if sellerCompany.bankAccount}}
+            <div class="notes-section">
+                <div class="notes-title">{{translations.bankAccount}}</div>
+                <div>{{sellerCompany.bankAccount}}</div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>{{translations.thankYou}}</strong></p>
+            <p>{{translations.generatedOn}} {{formatDate generatedAt locale}} | {{translations.poweredBy}}</p>
+        </div>
+    </div>
+</body>
+</html>

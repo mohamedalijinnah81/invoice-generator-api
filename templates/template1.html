@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="{{locale}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{translations.invoice}} {{invoiceNumber}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #fff;
+        }
+        
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px;
+            background: white;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 20px;
+        }
+        
+        .logo-section {
+            flex: 1;
+        }
+        
+        .logo {
+            max-width: 200px;
+            max-height: 80px;
+            object-fit: contain;
+        }
+        
+        .company-info {
+            margin-top: 10px;
+        }
+        
+        .company-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 5px;
+        }
+        
+        .invoice-title {
+            text-align: right;
+            flex: 1;
+        }
+        
+        .invoice-title h1 {
+            font-size: 36px;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        
+        .invoice-meta {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+        
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .meta-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .meta-label {
+            font-weight: bold;
+            color: #666;
+        }
+        
+        .parties {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 40px;
+        }
+        
+        .party {
+            flex: 1;
+            margin-right: 40px;
+        }
+        
+        .party:last-child {
+            margin-right: 0;
+        }
+        
+        .party-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .party-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .items-table th {
+            background: #007bff;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+        }
+        
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .items-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .text-right {
+            text-align: right;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .totals {
+            float: right;
+            width: 300px;
+            margin-bottom: 30px;
+        }
+        
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .totals-row.total {
+            font-weight: bold;
+            font-size: 18px;
+            background: #007bff;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: none;
+            margin-top: 10px;
+        }
+        
+        .notes-section {
+            clear: both;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .notes-title {
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        @media print {
+            body { margin: 0; }
+            .invoice-container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-section">
+                {{#if hasLogo}}
+                <img src="{{companyLogo}}" alt="Company Logo" class="logo">
+                {{/if}}
+                <div class="company-info">
+                    <div class="company-name">{{companyName}}</div>
+                </div>
+            </div>
+            <div class="invoice-title">
+                <h1>{{translations.invoice}}</h1>
+            </div>
+        </div>
+
+        <!-- Invoice Meta Information -->
+        <div class="invoice-meta">
+            <div class="meta-row">
+                <span class="meta-label">{{translations.invoiceNumber}}:</span>
+                <span>{{invoiceNumber}}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">{{translations.date}}:</span>
+                <span>{{formatDate date locale}}</span>
+            </div>
+            {{#if hasDueDate}}
+            <div class="meta-row">
+                <span class="meta-label">{{translations.dueDate}}:</span>
+                <span>{{formatDate dueDate locale}}</span>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- Parties Information -->
+        <div class="parties">
+            {{#if hasSeller}}
+            <div class="party">
+                <div class="party-title">{{translations.billFrom}}</div>
+                <div class="party-info">
+                    <strong>{{sellerCompany.name}}</strong><br>
+                    {{#if sellerCompany.address}}{{sellerCompany.address}}<br>{{/if}}
+                    {{#if sellerCompany.phone}}{{translations.phone}}: {{sellerCompany.phone}}<br>{{/if}}
+                    {{#if sellerCompany.email}}{{translations.email}}: {{sellerCompany.email}}<br>{{/if}}
+                    {{#if sellerCompany.taxNumber}}{{translations.taxNumber}}: {{sellerCompany.taxNumber}}<br>{{/if}}
+                    {{#if sellerCompany.vatNumber}}{{translations.vatNumber}}: {{sellerCompany.vatNumber}}<br>{{/if}}
+                </div>
+            </div>
+            {{/if}}
+            
+            {{#if hasBuyer}}
+            <div class="party">
+                <div class="party-title">{{translations.billTo}}</div>
+                <div class="party-info">
+                    <strong>{{buyerCompany.name}}</strong><br>
+                    {{#if buyerCompany.address}}{{buyerCompany.address}}<br>{{/if}}
+                    {{#if buyerCompany.phone}}{{translations.phone}}: {{buyerCompany.phone}}<br>{{/if}}
+                    {{#if buyerCompany.email}}{{translations.email}}: {{buyerCompany.email}}<br>{{/if}}
+                    {{#if buyerCompany.taxNumber}}{{translations.taxNumber}}: {{buyerCompany.taxNumber}}<br>{{/if}}
+                    {{#if buyerCompany.vatNumber}}{{translations.vatNumber}}: {{buyerCompany.vatNumber}}<br>{{/if}}
+                </div>
+            </div>
+            {{/if}}
+        </div>
+
+        <!-- Items Table -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>{{translations.description}}</th>
+                    <th class="text-center">{{translations.quantity}}</th>
+                    <th class="text-right">{{translations.unitPrice}}</th>
+                    <th class="text-right">{{translations.amount}}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each items}}
+                <tr>
+                    <td>
+                        <strong>{{name}}</strong>
+                        {{#if description}}<br><small>{{description}}</small>{{/if}}
+                    </td>
+                    <td class="text-center">{{quantity}}</td>
+                    <td class="text-right">{{formatCurrency price ../currency}}</td>
+                    <td class="text-right">{{formatCurrency lineTotal ../currency}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+
+        <!-- Totals -->
+        <div class="totals">
+            <div class="totals-row">
+                <span>{{translations.subtotal}}:</span>
+                <span>{{formatCurrency subtotal currency}}</span>
+            </div>
+            {{#if hasShipping}}
+            <div class="totals-row">
+                <span>{{translations.shipping}}:</span>
+                <span>{{formatCurrency shippingAmount currency}}</span>
+            </div>
+            {{/if}}
+            {{#if hasServiceFee}}
+            <div class="totals-row">
+                <span>{{translations.serviceFee}}:</span>
+                <span>{{formatCurrency serviceFee currency}}</span>
+            </div>
+            {{/if}}
+            <div class="totals-row">
+                <span>{{translations.tax}} ({{taxPercent}}%):</span>
+                <span>{{formatCurrency taxAmount currency}}</span>
+            </div>
+            <div class="totals-row total">
+                <span>{{translations.total}}:</span>
+                <span>{{formatCurrency total currency}}</span>
+            </div>
+        </div>
+
+        <!-- Notes and Payment Terms -->
+        {{#if hasNotes}}
+        <div class="notes-section">
+            <div class="notes-title">{{translations.notes}}:</div>
+            <div>{{notes}}</div>
+        </div>
+        {{/if}}
+
+        {{#if hasPaymentTerms}}
+        <div class="notes-section">
+            <div class="notes-title">{{translations.paymentTerms}}:</div>
+            <div>{{paymentTerms}}</div>
+        </div>
+        {{/if}}
+
+        {{#if sellerCompany.bankAccount}}
+        <div class="notes-section">
+            <div class="notes-title">{{translations.bankAccount}}:</div>
+            <div>{{sellerCompany.bankAccount}}</div>
+        </div>
+        {{/if}}
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>{{translations.thankYou}}</p>
+            <p>{{translations.generatedOn}} {{formatDate generatedAt locale}} | {{translations.poweredBy}}</p>
+        </div>
+    </div>
+</body>
+</html>
