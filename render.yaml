@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: invoice-generator-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: node app.js  # Or replace with your actual start script, like: npm start
+    envVars:
+      - key: PORT
+        value: false
