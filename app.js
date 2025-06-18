@@ -9,6 +9,9 @@ const invoiceRoutes = require('./routes/invoice');
 
 const app = express();
 
+// Trust proxy for Vercel (fixes rate limiting issues)
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 app.use(cors({
@@ -25,7 +28,9 @@ const limiter = rateLimit({
     retryAfter: '15 minutes'
   },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  // Trust proxy for accurate IP detection
+  trustProxy: true
 });
 
 app.use(limiter);
@@ -54,6 +59,12 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api', invoiceRoutes);
 
+// Test endpoint for debugging
+app.get('/api/test', async (req, res) => {
+  const test = require('./api/test');
+  return test(req, res);
+});
+
 // Root endpoint with API documentation
 app.get('/', (req, res) => {
   res.json({
@@ -66,7 +77,8 @@ app.get('/', (req, res) => {
       'GET /health': 'Health check',
       'GET /api/templates': 'List available templates',
       'GET /api/locales': 'List supported languages',
-      'GET /api/docs': 'API documentation'
+      'GET /api/docs': 'API documentation',
+      'GET /api/test': 'Test PDF generation (debug)'
     },
     documentation: 'https://github.com/your-repo/invoice-generator-api',
     support: 'support@yourapi.com'
@@ -83,7 +95,8 @@ app.use('*', (req, res) => {
       'GET /health',
       'GET /api/templates',
       'GET /api/locales',
-      'GET /api/docs'
+      'GET /api/docs',
+      'GET /api/test'
     ]
   });
 });

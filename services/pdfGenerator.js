@@ -1,51 +1,65 @@
-const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
+// PDF Generator for Vercel Serverless using full Puppeteer
+const puppeteer = require('puppeteer');
+
+console.log('PDF Generator loaded. Environment:', {
+  VERCEL: process.env.VERCEL,
+  NODE_ENV: process.env.NODE_ENV,
+  isVercel: process.env.VERCEL === '1'
+});
 
 async function generatePDF(html, options = {}) {
-  let puppeteer;
-  let browser;
-  let page;
+  let browser = null;
+  let page = null;
 
   try {
-    let browserConfig = {
+    console.log('Starting PDF generation...');
+    
+    // Browser configuration optimized for serverless
+    const browserConfig = {
       headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-extensions',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection'
+      ],
       ignoreHTTPSErrors: true,
-      timeout: parseInt(process.env.PDF_TIMEOUT || '30000'),
-      protocolTimeout: parseInt(process.env.PDF_TIMEOUT || '30000')
+      timeout: 30000
     };
-
-    if (isServerless) {
-      puppeteer = require('puppeteer-core');
-      const chromium = require('@sparticuz/chromium');
-      browserConfig = {
-        ...browserConfig,
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless
-      };
-    } else {
-      puppeteer = require('puppeteer');
-      // No executablePath needed for local puppeteer
-    }
-
+    
+    console.log('Launching browser with serverless-optimized config');
     browser = await puppeteer.launch(browserConfig);
+    console.log('Browser launched successfully');
+    
     page = await browser.newPage();
-
+    console.log('Page created');
+    
     await page.setViewport({
       width: 1200,
       height: 1600,
       deviceScaleFactor: 2
     });
-
+    
+    console.log('Setting HTML content...');
     await page.setContent(html, {
       waitUntil: 'domcontentloaded',
-      timeout: parseInt(process.env.PDF_TIMEOUT || '30000')
+      timeout: 30000
     });
-
+    
     await page.waitForTimeout(1000);
-
+    
     // Add watermark if enabled
     if (process.env.ENABLE_WATERMARK === 'true' || options.watermark) {
+      console.log('Adding watermark...');
       const watermarkHTML = `
         <div style="
           position: fixed;
@@ -71,43 +85,56 @@ async function generatePDF(html, options = {}) {
         console.warn('Failed to add watermark:', watermarkError.message);
       }
     }
-
+    
     const pdfOptions = {
       format: options.format || 'A4',
       printBackground: true,
       margin: {
-        top: options.marginTop || '0.5in',
-        right: options.marginRight || '0.5in',
-        bottom: options.marginBottom || '0.5in',
-        left: options.marginLeft || '0.5in'
+        top: '0.5in',
+        right: '0.5in',
+        bottom: '0.5in',
+        left: '0.5in'
       },
-      displayHeaderFooter: options.displayHeaderFooter || false,
-      preferCSSPageSize: true,
-      timeout: parseInt(process.env.PDF_TIMEOUT || '30000')
+      displayHeaderFooter: false,
+      preferCSSPageSize: true
     };
-
+    
+    console.log('Generating PDF...');
     const pdfBuffer = await page.pdf(pdfOptions);
+    console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+    
     return pdfBuffer;
-
+    
   } catch (error) {
     console.error('PDF generation error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Provide more specific error messages
     let errorMessage = error.message;
-    if (error.message.includes('Protocol error')) {
-      errorMessage = 'Browser protocol error occurred. This may be due to environment constraints.';
-    } else if (error.message.includes('Target closed')) {
-      errorMessage = 'Browser target was closed unexpectedly during PDF generation.';
-    } else if (error.message.includes('timeout')) {
-      errorMessage = 'PDF generation timed out. Please try again with simpler content.';
-    } else if (error.message.includes('ENOENT')) {
-      errorMessage = 'Browser executable not found. Please ensure Chrome/Chromium is installed.';
+    if (error.message.includes('libnss3.so')) {
+      errorMessage = 'System libraries missing. This is a Vercel environment issue.';
+    } else if (error.message.includes('Failed to launch')) {
+      errorMessage = 'Browser launch failed. Check executable path and permissions.';
     }
+    
     throw new Error(`Failed to generate PDF: ${errorMessage}`);
   } finally {
+    // Cleanup
     if (page && !page.isClosed()) {
-      try { await page.close(); } catch (closeError) {}
+      try {
+        await page.close();
+        console.log('Page closed');
+      } catch (closeError) {
+        console.warn('Error closing page:', closeError.message);
+      }
     }
     if (browser && browser.connected) {
-      try { await browser.close(); } catch (closeError) {}
+      try {
+        await browser.close();
+        console.log('Browser closed');
+      } catch (closeError) {
+        console.warn('Error closing browser:', closeError.message);
+      }
     }
   }
 }
@@ -125,8 +152,7 @@ const generatePDFWithRetry = async (html, options = {}, maxRetries = 2) => {
       console.warn(`PDF generation attempt ${attempt} failed:`, error.message);
       
       if (attempt < maxRetries) {
-        // Shorter wait time for serverless
-        const waitTime = Math.min(Math.pow(2, attempt) * 500, 2000);
+        const waitTime = Math.min(Math.pow(2, attempt) * 1000, 3000);
         console.log(`Waiting ${waitTime}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
@@ -139,17 +165,19 @@ const generatePDFWithRetry = async (html, options = {}, maxRetries = 2) => {
 // Health check function
 const healthCheck = async () => {
   try {
-    // Test PDF generation with minimal content
+    console.log('Running health check...');
     const testHtml = '<html><body><h1>Test</h1></body></html>';
     await generatePDF(testHtml, { format: 'A4' });
     return { 
       status: 'healthy', 
-      message: 'PDF generation is working correctly' 
+      message: 'PDF generation is working correctly',
+      environment: 'Vercel Serverless'
     };
   } catch (error) {
     return { 
       status: 'unhealthy', 
-      message: error.message 
+      message: error.message,
+      environment: 'Vercel Serverless'
     };
   }
 };
