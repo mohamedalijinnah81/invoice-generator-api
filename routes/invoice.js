@@ -6,7 +6,7 @@ const path = require('path');
 const { validateInvoiceData } = require('../utils/validation');
 const { generatePDF } = require('../services/pdfGenerator');
 const { uploadToCloudinary } = require('../services/uploadToCloudinary');
-const { renderTemplate } = require('../services/templateEngine');
+const { renderTemplate, getAvailableTemplates, getAvailableLocales } = require('../services/templateEngine');
 
 // Generate Invoice endpoint
 router.post('/generate-invoice', async (req, res) => {
@@ -87,20 +87,7 @@ router.post('/generate-invoice', async (req, res) => {
 // Get available templates
 router.get('/templates', async (req, res) => {
   try {
-    const templatesDir = path.join(__dirname, '../templates');
-    const files = await fs.readdir(templatesDir);
-    const templates = files
-      .filter(file => file.endsWith('.html'))
-      .map(file => {
-        const templateNumber = parseInt(file.match(/\d+/)?.[0]);
-        return {
-          id: templateNumber,
-          name: `Template ${templateNumber}`,
-          filename: file,
-          description: `Professional invoice template ${templateNumber}`
-        };
-      })
-      .sort((a, b) => a.id - b.id);
+    const templates = await getAvailableTemplates();
 
     res.json({
       success: true,
@@ -119,27 +106,7 @@ router.get('/templates', async (req, res) => {
 // Get supported locales
 router.get('/locales', async (req, res) => {
   try {
-    const localesDir = path.join(__dirname, '../locales');
-    const files = await fs.readdir(localesDir);
-    const locales = files
-      .filter(file => file.endsWith('.json'))
-      .map(file => {
-        const code = file.replace('.json', '');
-        const names = {
-          'en': 'English',
-          'es': 'Español',
-          'fr': 'Français',
-          'de': 'Deutsch',
-          'nl': 'Nederlands',
-          'it': 'Italiano',
-          'pt': 'Português'
-        };
-        return {
-          code,
-          name: names[code] || code.toUpperCase(),
-          filename: file
-        };
-      });
+    const locales = await getAvailableLocales();
 
     res.json({
       success: true,
@@ -160,6 +127,7 @@ router.get('/docs', (req, res) => {
   res.json({
     apiName: 'Invoice Generator API',
     version: '1.0.0',
+    platform: 'Vercel Serverless',
     endpoints: {
       generateInvoice: {
         method: 'POST',
@@ -183,8 +151,8 @@ router.get('/docs', (req, res) => {
           'locale',
           'template'
         ],
-        supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD', 'AUD'],
-        supportedLocales: ['en', 'es', 'fr', 'de', 'nl', 'it', 'pt'],
+        supportedCurrencies: ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'SEK', 'NOK', 'DKK'],
+        supportedLocales: ['en', 'es', 'fr', 'de', 'nl', 'it', 'pt', 'sv', 'no', 'da'],
         templates: [1, 2, 3, 4, 5]
       }
     },

@@ -1,160 +1,50 @@
-const puppeteer = require('puppeteer');
+const isServerless = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
 
-let browser;
-let isInitializing = false;
+async function generatePDF(html, options = {}) {
+  let puppeteer;
+  let browser;
+  let page;
 
-// Initialize browser instance with better error handling
-const initBrowser = async () => {
-  // Prevent multiple simultaneous initializations
-  if (isInitializing) {
-    // Wait for current initialization to complete
-    while (isInitializing) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    return browser;
-  }
-
-  if (!browser || !browser.connected) {
-    isInitializing = true;
-    
-    try {
-      // Close existing browser if it exists but is disconnected
-      if (browser) {
-        try {
-          await browser.close();
-        } catch (error) {
-          console.warn('Error closing disconnected browser:', error.message);
-        }
-        browser = null;
-      }
-
-      browser = await puppeteer.launch({
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process',
-          '--disable-gpu',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-features=TranslateUI',
-          '--disable-ipc-flooding-protection',
-          '--disable-extensions'
-        ],
-        timeout: parseInt(process.env.PDF_TIMEOUT || '60000'),
-        protocolTimeout: parseInt(process.env.PDF_TIMEOUT || '60000')
-      });
-
-      // Add error handlers to browser
-      browser.on('disconnected', () => {
-        console.warn('Browser disconnected');
-        browser = null;
-      });
-
-      browser.on('targetdestroyed', (target) => {
-        console.warn('Browser target destroyed:', target.url());
-      });
-
-    } catch (error) {
-      console.error('Failed to initialize browser:', error);
-      browser = null;
-      throw error;
-    } finally {
-      isInitializing = false;
-    }
-  }
-  
-  return browser;
-};
-
-// Generate PDF from HTML with improved error handling
-const generatePDF = async (html, options = {}) => {
-  let page = null;
-  
   try {
-    const browserInstance = await initBrowser();
-    
-    if (!browserInstance || !browserInstance.connected) {
-      throw new Error('Browser instance is not available or disconnected');
+    let browserConfig = {
+      headless: 'new',
+      ignoreHTTPSErrors: true,
+      timeout: parseInt(process.env.PDF_TIMEOUT || '30000'),
+      protocolTimeout: parseInt(process.env.PDF_TIMEOUT || '30000')
+    };
+
+    if (isServerless) {
+      puppeteer = require('puppeteer-core');
+      const chromium = require('@sparticuz/chromium');
+      browserConfig = {
+        ...browserConfig,
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless
+      };
+    } else {
+      puppeteer = require('puppeteer');
+      // No executablePath needed for local puppeteer
     }
 
-    // Create new page with error handling
-    page = await browserInstance.newPage();
+    browser = await puppeteer.launch(browserConfig);
+    page = await browser.newPage();
 
-    // Set up page error handlers
-    page.on('error', (error) => {
-      console.error('Page error:', error);
-    });
-
-    page.on('pageerror', (error) => {
-      console.error('Page script error:', error);
-    });
-
-    // Set viewport for consistent rendering
     await page.setViewport({
       width: 1200,
       height: 1600,
       deviceScaleFactor: 2
     });
 
-    // Set longer timeouts for content loading
-    const timeout = parseInt(process.env.PDF_TIMEOUT || '60000');
-    page.setDefaultTimeout(timeout);
-    page.setDefaultNavigationTimeout(timeout);
+    await page.setContent(html, {
+      waitUntil: 'domcontentloaded',
+      timeout: parseInt(process.env.PDF_TIMEOUT || '30000')
+    });
 
-    // Set content with multiple fallback strategies
-    try {
-      await page.setContent(html, {
-        waitUntil: ['networkidle0', 'domcontentloaded'],
-        timeout: timeout
-      });
-    } catch (contentError) {
-      console.warn('Failed with networkidle0, trying networkidle2:', contentError.message);
-      try {
-        await page.setContent(html, {
-          waitUntil: ['networkidle2', 'domcontentloaded'],
-          timeout: timeout
-        });
-      } catch (fallbackError) {
-        console.warn('Failed with networkidle2, trying domcontentloaded only:', fallbackError.message);
-        await page.setContent(html, {
-          waitUntil: 'domcontentloaded',
-          timeout: timeout
-        });
-      }
-    }
-
-    // Wait a bit more to ensure everything is rendered
     await page.waitForTimeout(1000);
 
-    // Check if page is still connected
-    if (page.isClosed()) {
-      throw new Error('Page was closed unexpectedly');
-    }
-
-    // PDF generation options
-    const pdfOptions = {
-      format: options.format || 'A4',
-      printBackground: true,
-      margin: {
-        top: options.marginTop || '0.5in',
-        right: options.marginRight || '0.5in',
-        bottom: options.marginBottom || '0.5in',
-        left: options.marginLeft || '0.5in'
-      },
-      displayHeaderFooter: options.displayHeaderFooter || false,
-      headerTemplate: options.headerTemplate || '',
-      footerTemplate: options.footerTemplate || '',
-      preferCSSPageSize: true,
-      timeout: timeout
-    };
-
-    // Add watermark for free tier if needed
+    // Add watermark if enabled
     if (process.env.ENABLE_WATERMARK === 'true' || options.watermark) {
       const watermarkHTML = `
         <div style="
@@ -173,7 +63,6 @@ const generatePDF = async (html, options = {}) => {
           ${process.env.WATERMARK_TEXT || 'SAMPLE INVOICE'}
         </div>
       `;
-      
       try {
         await page.evaluate((watermark) => {
           document.body.insertAdjacentHTML('beforeend', watermark);
@@ -183,39 +72,48 @@ const generatePDF = async (html, options = {}) => {
       }
     }
 
-    // Generate PDF buffer with error handling
+    const pdfOptions = {
+      format: options.format || 'A4',
+      printBackground: true,
+      margin: {
+        top: options.marginTop || '0.5in',
+        right: options.marginRight || '0.5in',
+        bottom: options.marginBottom || '0.5in',
+        left: options.marginLeft || '0.5in'
+      },
+      displayHeaderFooter: options.displayHeaderFooter || false,
+      preferCSSPageSize: true,
+      timeout: parseInt(process.env.PDF_TIMEOUT || '30000')
+    };
+
     const pdfBuffer = await page.pdf(pdfOptions);
-    
     return pdfBuffer;
 
   } catch (error) {
     console.error('PDF generation error:', error);
-    
-    // Enhanced error messages for common issues
     let errorMessage = error.message;
-    if (error.message.includes('Navigating frame was detached')) {
-      errorMessage = 'Browser frame was detached during PDF generation. This usually indicates a resource issue.';
-    } else if (error.message.includes('Protocol error')) {
-      errorMessage = 'Browser protocol error occurred. The browser instance may be unstable.';
+    if (error.message.includes('Protocol error')) {
+      errorMessage = 'Browser protocol error occurred. This may be due to environment constraints.';
     } else if (error.message.includes('Target closed')) {
       errorMessage = 'Browser target was closed unexpectedly during PDF generation.';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'PDF generation timed out. Please try again with simpler content.';
+    } else if (error.message.includes('ENOENT')) {
+      errorMessage = 'Browser executable not found. Please ensure Chrome/Chromium is installed.';
     }
-    
     throw new Error(`Failed to generate PDF: ${errorMessage}`);
   } finally {
-    // Ensure page is properly closed
     if (page && !page.isClosed()) {
-      try {
-        await page.close();
-      } catch (closeError) {
-        console.warn('Error closing page:', closeError.message);
-      }
+      try { await page.close(); } catch (closeError) {}
+    }
+    if (browser && browser.connected) {
+      try { await browser.close(); } catch (closeError) {}
     }
   }
-};
+}
 
-// Generate PDF with enhanced retry mechanism
-const generatePDFWithRetry = async (html, options = {}, maxRetries = 3) => {
+// Generate PDF with retry mechanism
+const generatePDFWithRetry = async (html, options = {}, maxRetries = 2) => {
   let lastError;
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -227,20 +125,10 @@ const generatePDFWithRetry = async (html, options = {}, maxRetries = 3) => {
       console.warn(`PDF generation attempt ${attempt} failed:`, error.message);
       
       if (attempt < maxRetries) {
-        // Progressive wait time (exponential backoff)
-        const waitTime = Math.min(Math.pow(2, attempt) * 1000, 10000);
+        // Shorter wait time for serverless
+        const waitTime = Math.min(Math.pow(2, attempt) * 500, 2000);
         console.log(`Waiting ${waitTime}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
-        
-        // Force browser restart on certain errors
-        if (error.message.includes('detached') || 
-            error.message.includes('Protocol error') || 
-            error.message.includes('Target closed') ||
-            error.message.includes('disconnected')) {
-          
-          console.log('Forcing browser restart due to critical error...');
-          await forceCleanup();
-        }
       }
     }
   }
@@ -248,81 +136,15 @@ const generatePDFWithRetry = async (html, options = {}, maxRetries = 3) => {
   throw lastError;
 };
 
-// Force cleanup of browser resources
-const forceCleanup = async () => {
-  if (browser) {
-    try {
-      // Get all pages and close them
-      const pages = await browser.pages();
-      await Promise.all(pages.map(page => {
-        if (!page.isClosed()) {
-          return page.close().catch(err => console.warn('Error closing page:', err.message));
-        }
-      }));
-      
-      // Close browser
-      await browser.close();
-    } catch (error) {
-      console.warn('Error during force cleanup:', error.message);
-    }
-    
-    browser = null;
-  }
-  
-  // Reset initialization flag
-  isInitializing = false;
-};
-
-// Regular cleanup function
-const cleanup = async () => {
-  console.log('Cleaning up PDF generator...');
-  await forceCleanup();
-};
-
-// Enhanced graceful shutdown
-const setupGracefulShutdown = () => {
-  const signals = ['SIGINT', 'SIGTERM', 'SIGQUIT'];
-  
-  signals.forEach(signal => {
-    process.on(signal, async () => {
-      console.log(`Received ${signal}, cleaning up...`);
-      await cleanup();
-      process.exit(0);
-    });
-  });
-
-  process.on('exit', () => {
-    console.log('Process exiting...');
-  });
-
-  // Handle uncaught exceptions
-  process.on('uncaughtException', async (error) => {
-    console.error('Uncaught exception:', error);
-    await cleanup();
-    process.exit(1);
-  });
-
-  process.on('unhandledRejection', async (reason, promise) => {
-    console.error('Unhandled rejection at:', promise, 'reason:', reason);
-    await cleanup();
-    process.exit(1);
-  });
-};
-
-// Initialize graceful shutdown
-setupGracefulShutdown();
-
 // Health check function
 const healthCheck = async () => {
   try {
-    if (!browser || !browser.connected) {
-      return { status: 'unhealthy', message: 'Browser not available' };
-    }
-    
-    const pages = await browser.pages();
+    // Test PDF generation with minimal content
+    const testHtml = '<html><body><h1>Test</h1></body></html>';
+    await generatePDF(testHtml, { format: 'A4' });
     return { 
       status: 'healthy', 
-      message: `Browser connected with ${pages.length} pages` 
+      message: 'PDF generation is working correctly' 
     };
   } catch (error) {
     return { 
@@ -334,7 +156,5 @@ const healthCheck = async () => {
 
 module.exports = {
   generatePDF: generatePDFWithRetry,
-  cleanup,
-  forceCleanup,
   healthCheck
 };

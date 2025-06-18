@@ -16,7 +16,7 @@ app.use(cors({
   credentials: false
 }));
 
-// Rate limiting
+// Rate limiting (optimized for serverless)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production
@@ -34,8 +34,10 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files
-app.use('/static', express.static(path.join(__dirname, 'public')));
+// Static files (for serverless, this will be handled by Vercel)
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/static', express.static(path.join(__dirname, 'public')));
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -43,7 +45,9 @@ app.get('/health', (req, res) => {
     status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: process.env.npm_package_version || '1.0.0'
+    version: process.env.npm_package_version || '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    platform: 'serverless'
   });
 });
 
@@ -55,12 +59,14 @@ app.get('/', (req, res) => {
   res.json({
     name: 'Invoice Generator API',
     version: '1.0.0',
-    description: 'Dynamic, Multi-language, Template-based Invoice Generator',
+    description: 'Dynamic, Multi-language, Template-based Invoice Generator (Serverless)',
+    platform: 'Vercel Serverless',
     endpoints: {
       'POST /api/generate-invoice': 'Generate invoice PDF',
       'GET /health': 'Health check',
       'GET /api/templates': 'List available templates',
-      'GET /api/locales': 'List supported languages'
+      'GET /api/locales': 'List supported languages',
+      'GET /api/docs': 'API documentation'
     },
     documentation: 'https://github.com/your-repo/invoice-generator-api',
     support: 'support@yourapi.com'
@@ -76,7 +82,8 @@ app.use('*', (req, res) => {
       'POST /api/generate-invoice',
       'GET /health',
       'GET /api/templates',
-      'GET /api/locales'
+      'GET /api/locales',
+      'GET /api/docs'
     ]
   });
 });
@@ -119,10 +126,16 @@ app.use((err, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+// Serverless export for Vercel
+module.exports = app;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Invoice Generator API running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Access: http://localhost:${PORT}`);
-});
+// Only start server if not in serverless environment
+if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 4000;
+  
+  app.listen(PORT, () => {
+    console.log(`🚀 Invoice Generator API running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌐 Access: http://localhost:${PORT}`);
+  });
+}

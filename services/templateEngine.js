@@ -2,11 +2,11 @@ const fs = require('fs').promises;
 const path = require('path');
 const Handlebars = require('handlebars');
 
-// Cache for compiled templates and translations
+// Cache for compiled templates and translations (optimized for serverless)
 const templateCache = new Map();
 const translationCache = new Map();
 
-// Load and cache translation file with better error handling
+// Load and cache translation file with serverless-optimized error handling
 const loadTranslations = async (locale) => {
   if (translationCache.has(locale)) {
     return translationCache.get(locale);
@@ -81,7 +81,7 @@ const loadTranslations = async (locale) => {
   }
 };
 
-// Load and cache template with better error handling
+// Load and cache template with serverless-optimized error handling
 const loadTemplate = async (templateNumber) => {
   const cacheKey = `template_${templateNumber}`;
   
@@ -199,33 +199,34 @@ const registerHelpers = () => {
     }
   });
 
-  // Conditional helper
-  Handlebars.registerHelper('ifEquals', function(arg1, arg2, options) {
-    return (arg1 == arg2) ? options.fn(this) : options.inverse(this);
+  // Format number helper
+  Handlebars.registerHelper('formatNumber', function(number, decimals = 2) {
+    try {
+      const num = parseFloat(number) || 0;
+      return num.toFixed(decimals);
+    } catch (error) {
+      console.warn('Number formatting error:', error);
+      return '0.00';
+    }
   });
 
-  // Greater than helper
-  Handlebars.registerHelper('ifGreater', function(arg1, arg2, options) {
-    return (parseFloat(arg1) > parseFloat(arg2)) ? options.fn(this) : options.inverse(this);
+  // Conditional helper for optional fields
+  Handlebars.registerHelper('ifExists', function(value, options) {
+    if (value && value !== '' && value !== null && value !== undefined) {
+      return options.fn(this);
+    }
+    return options.inverse(this);
   });
 
-  // String helpers
-  Handlebars.registerHelper('uppercase', function(str) {
-    return str ? str.toString().toUpperCase() : '';
-  });
-
-  Handlebars.registerHelper('lowercase', function(str) {
-    return str ? str.toString().toLowerCase() : '';
-  });
-
-  Handlebars.registerHelper('capitalize', function(str) {
+  // Safe string helper
+  Handlebars.registerHelper('safeString', function(str) {
     if (!str) return '';
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    return new Handlebars.SafeString(str);
   });
 
-  // Default value helper
-  Handlebars.registerHelper('default', function(value, defaultValue) {
-    return (value !== null && value !== undefined && value !== '') ? value : defaultValue;
+  // Array length helper
+  Handlebars.registerHelper('arrayLength', function(array) {
+    return Array.isArray(array) ? array.length : 0;
   });
 
   // Math helpers
@@ -233,275 +234,200 @@ const registerHelpers = () => {
     return (parseFloat(a) || 0) + (parseFloat(b) || 0);
   });
 
-  Handlebars.registerHelper('subtract', function(a, b) {
-    return (parseFloat(a) || 0) - (parseFloat(b) || 0);
-  });
-
   Handlebars.registerHelper('multiply', function(a, b) {
     return (parseFloat(a) || 0) * (parseFloat(b) || 0);
   });
 
-  Handlebars.registerHelper('divide', function(a, b) {
-    const divisor = parseFloat(b);
-    if (divisor === 0) return 0;
-    return (parseFloat(a) || 0) / divisor;
+  // Comparison helpers
+  Handlebars.registerHelper('eq', function(a, b) {
+    return a === b;
   });
 
-  // URL validation helper
-  Handlebars.registerHelper('isValidUrl', function(url) {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
+  Handlebars.registerHelper('gt', function(a, b) {
+    return (parseFloat(a) || 0) > (parseFloat(b) || 0);
   });
 
-  // JSON helper for debugging
-  Handlebars.registerHelper('json', function(context) {
-    return JSON.stringify(context, null, 2);
-  });
-
-  // Safe string helper
-  Handlebars.registerHelper('safe', function(str) {
-    return new Handlebars.SafeString(str || '');
-  });
-
-  // Number formatting helper
-  Handlebars.registerHelper('formatNumber', function(num, decimals = 2) {
-    try {
-      const number = parseFloat(num) || 0;
-      return number.toFixed(decimals);
-    } catch (error) {
-      console.warn('Number formatting error:', error);
-      return num || '0';
-    }
+  Handlebars.registerHelper('lt', function(a, b) {
+    return (parseFloat(a) || 0) < (parseFloat(b) || 0);
   });
 };
 
 // Initialize helpers
 registerHelpers();
 
-// Validate invoice data
+// Validate invoice data structure
 const validateInvoiceData = (invoiceData) => {
-  const errors = [];
-
-  // Required fields
-  if (!invoiceData.invoiceNumber) {
-    errors.push('Invoice number is required');
+  const requiredFields = ['invoiceNumber', 'companyName', 'productOrService', 'taxPercent', 'currency', 'date'];
+  const missingFields = requiredFields.filter(field => !invoiceData[field]);
+  
+  if (missingFields.length > 0) {
+    throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
   }
-
-  if (!invoiceData.date) {
-    errors.push('Invoice date is required');
+  
+  if (!Array.isArray(invoiceData.productOrService) || invoiceData.productOrService.length === 0) {
+    throw new Error('At least one product or service is required');
   }
-
-  if (!invoiceData.productOrService || !Array.isArray(invoiceData.productOrService) || invoiceData.productOrService.length === 0) {
-    errors.push('At least one product or service item is required');
-  }
-
-  // Validate items
-  if (invoiceData.productOrService) {
-    invoiceData.productOrService.forEach((item, index) => {
-      if (!item.name) {
-        errors.push(`Item ${index + 1}: Name is required`);
-      }
-      if (!item.quantity || parseFloat(item.quantity) <= 0) {
-        errors.push(`Item ${index + 1}: Valid quantity is required`);
-      }
-      if (!item.price || parseFloat(item.price) < 0) {
-        errors.push(`Item ${index + 1}: Valid price is required`);
-      }
-    });
-  }
-
-  return errors;
+  
+  return true;
 };
 
-// Calculate totals safely
+// Calculate totals with error handling
 const calculateTotals = (invoiceData) => {
   try {
-    let subtotal = 0;
+    const subtotal = invoiceData.productOrService.reduce((sum, item) => {
+      const quantity = parseFloat(item.quantity) || 0;
+      const price = parseFloat(item.price) || 0;
+      return sum + (quantity * price);
+    }, 0);
 
-    // Calculate subtotal from items
-    if (invoiceData.productOrService && Array.isArray(invoiceData.productOrService)) {
-      subtotal = invoiceData.productOrService.reduce((sum, item) => {
-        const quantity = parseFloat(item.quantity) || 0;
-        const price = parseFloat(item.price) || 0;
-        return sum + (quantity * price);
-      }, 0);
-    }
-
-    // Calculate tax
     const taxPercent = parseFloat(invoiceData.taxPercent) || 0;
-    const taxAmount = subtotal * (taxPercent / 100);
-
-    // Add other amounts
+    const taxAmount = (subtotal * taxPercent) / 100;
     const shippingAmount = parseFloat(invoiceData.shippingAmount) || 0;
     const serviceFee = parseFloat(invoiceData.serviceFee) || 0;
-
-    // Calculate total
     const total = subtotal + taxAmount + shippingAmount + serviceFee;
 
     return {
       subtotal: subtotal.toFixed(2),
       taxAmount: taxAmount.toFixed(2),
+      shippingAmount: shippingAmount.toFixed(2),
+      serviceFee: serviceFee.toFixed(2),
       total: total.toFixed(2)
     };
   } catch (error) {
     console.error('Error calculating totals:', error);
-    return {
-      subtotal: '0.00',
-      taxAmount: '0.00',
-      total: '0.00'
-    };
+    throw new Error('Failed to calculate invoice totals');
   }
 };
 
-// Main template rendering function with comprehensive error handling
+// Main template rendering function optimized for serverless
 const renderTemplate = async (invoiceData) => {
   try {
     // Validate input data
-    const validationErrors = validateInvoiceData(invoiceData);
-    if (validationErrors.length > 0) {
-      throw new Error(`Validation errors: ${validationErrors.join(', ')}`);
-    }
-
+    validateInvoiceData(invoiceData);
+    
+    // Set defaults
     const templateNumber = invoiceData.template || 1;
     const locale = invoiceData.locale || 'en';
-
-    // Load template and translations
-    const [compiledTemplate, translations] = await Promise.all([
-      loadTemplate(templateNumber),
-      loadTranslations(locale)
+    
+    // Load translations and template in parallel
+    const [translations, template] = await Promise.all([
+      loadTranslations(locale),
+      loadTemplate(templateNumber)
     ]);
-
+    
     // Calculate totals
-    const calculatedTotals = calculateTotals(invoiceData);
-
+    const totals = calculateTotals(invoiceData);
+    
     // Prepare data for template
     const templateData = {
       ...invoiceData,
-      ...calculatedTotals,
+      ...totals,
       translations,
       locale,
       generatedAt: new Date().toISOString(),
-      currentYear: new Date().getFullYear(),
-      
-      // Add computed boolean values for template conditionals
-      hasLogo: !!(invoiceData.companyLogo && invoiceData.companyLogo.length > 0),
-      hasBuyer: !!(invoiceData.buyerCompany && Object.keys(invoiceData.buyerCompany).length > 0),
-      hasSeller: !!(invoiceData.sellerCompany && Object.keys(invoiceData.sellerCompany).length > 0),
-      hasShipping: !!(invoiceData.shippingAmount && parseFloat(invoiceData.shippingAmount) > 0),
-      hasServiceFee: !!(invoiceData.serviceFee && parseFloat(invoiceData.serviceFee) > 0),
-      hasDueDate: !!(invoiceData.dueDate && invoiceData.dueDate.length > 0),
-      hasNotes: !!(invoiceData.notes && invoiceData.notes.length > 0),
-      hasPaymentTerms: !!(invoiceData.paymentTerms && invoiceData.paymentTerms.length > 0),
-      
-      // Format items with calculated totals and safe defaults
-      items: invoiceData.productOrService.map((item, index) => ({
+      // Add computed fields
+      hasBuyerCompany: !!(invoiceData.buyerCompany && invoiceData.buyerCompany.name),
+      hasSellerCompany: !!(invoiceData.sellerCompany && invoiceData.sellerCompany.name),
+      hasShipping: parseFloat(invoiceData.shippingAmount) > 0,
+      hasServiceFee: parseFloat(invoiceData.serviceFee) > 0,
+      hasNotes: !!(invoiceData.notes && invoiceData.notes.trim()),
+      hasPaymentTerms: !!(invoiceData.paymentTerms && invoiceData.paymentTerms.trim()),
+      hasDueDate: !!(invoiceData.dueDate),
+      hasLogo: !!(invoiceData.companyLogo),
+      // Format dates
+      formattedDate: invoiceData.date ? new Date(invoiceData.date).toLocaleDateString(locale) : '',
+      formattedDueDate: invoiceData.dueDate ? new Date(invoiceData.dueDate).toLocaleDateString(locale) : '',
+      // Add item totals
+      itemsWithTotals: invoiceData.productOrService.map(item => ({
         ...item,
-        index: index + 1,
-        quantity: parseFloat(item.quantity) || 0,
-        price: parseFloat(item.price) || 0,
-        lineTotal: ((parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0)).toFixed(2),
-        name: item.name || `Item ${index + 1}`,
-        description: item.description || ''
-      })),
-
-      // Ensure currency is set
-      currency: invoiceData.currency || 'USD',
-      
-      // Ensure tax percent is set
-      taxPercent: parseFloat(invoiceData.taxPercent) || 0
+        total: (parseFloat(item.quantity) * parseFloat(item.price)).toFixed(2)
+      }))
     };
-
-    // Render template with data
-    const html = compiledTemplate(templateData);
     
-    if (!html || html.trim().length === 0) {
-      throw new Error('Template rendered empty HTML');
-    }
+    // Render template
+    const html = template(templateData);
     
     return html;
-
+    
   } catch (error) {
     console.error('Template rendering error:', error);
-    throw new Error(`Failed to render template: ${error.message}`);
+    throw new Error(`Failed to render invoice template: ${error.message}`);
   }
 };
 
-// Clear template and translation caches
+// Clear cache (useful for testing or memory management)
 const clearCache = () => {
   templateCache.clear();
   translationCache.clear();
-  console.log('Template and translation caches cleared');
 };
 
-// Get available templates
+// Get available templates with serverless-optimized file reading
 const getAvailableTemplates = async () => {
   try {
     const templatesDir = path.join(__dirname, '../templates');
-    
-    // Check if templates directory exists
-    try {
-      await fs.access(templatesDir);
-    } catch (error) {
-      console.warn('Templates directory not found');
-      return [1];
-    }
-
     const files = await fs.readdir(templatesDir);
-    
     const templates = files
-      .filter(file => file.endsWith('.html') && file.startsWith('template'))
+      .filter(file => file.endsWith('.html'))
       .map(file => {
-        const match = file.match(/template(\d+)\.html/);
-        return match ? parseInt(match[1]) : null;
+        const templateNumber = parseInt(file.match(/\d+/)?.[0]);
+        return {
+          id: templateNumber,
+          name: `Template ${templateNumber}`,
+          filename: file,
+          description: `Professional invoice template ${templateNumber}`
+        };
       })
-      .filter(num => num !== null)
-      .sort((a, b) => a - b);
+      .sort((a, b) => a.id - b.id);
 
-    return templates.length > 0 ? templates : [1];
+    return templates;
   } catch (error) {
-    console.error('Error reading templates directory:', error);
-    return [1];
+    console.error('Error getting available templates:', error);
+    throw new Error('Failed to get available templates');
   }
 };
 
-// Get available locales
+// Get available locales with serverless-optimized file reading
 const getAvailableLocales = async () => {
   try {
     const localesDir = path.join(__dirname, '../locales');
-    
-    // Check if locales directory exists
-    try {
-      await fs.access(localesDir);
-    } catch (error) {
-      console.warn('Locales directory not found');
-      return ['en'];
-    }
-
     const files = await fs.readdir(localesDir);
-    
     const locales = files
       .filter(file => file.endsWith('.json'))
-      .map(file => file.replace('.json', ''))
-      .sort();
+      .map(file => {
+        const code = file.replace('.json', '');
+        const names = {
+          'en': 'English',
+          'es': 'Español',
+          'fr': 'Français',
+          'de': 'Deutsch',
+          'nl': 'Nederlands',
+          'it': 'Italiano',
+          'pt': 'Português',
+          'sv': 'Svenska',
+          'no': 'Norsk',
+          'da': 'Dansk'
+        };
+        return {
+          code,
+          name: names[code] || code.toUpperCase(),
+          filename: file
+        };
+      });
 
-    return locales.length > 0 ? locales : ['en'];
+    return locales;
   } catch (error) {
-    console.error('Error reading locales directory:', error);
-    return ['en'];
+    console.error('Error getting available locales:', error);
+    throw new Error('Failed to get available locales');
   }
 };
 
 module.exports = {
   renderTemplate,
-  clearCache,
-  getAvailableTemplates,
-  getAvailableLocales,
   loadTranslations,
   loadTemplate,
+  getAvailableTemplates,
+  getAvailableLocales,
+  clearCache,
   validateInvoiceData,
   calculateTotals
 };
