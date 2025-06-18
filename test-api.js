@@ -1,22 +1,32 @@
 const http = require('http');
 
 function testInvoiceGeneration() {
-  const requestBody = {
-    invoiceNumber: "INV-001",
-    companyName: "Tech World",
-    productOrService: [
+  const testData = {
+    "invoiceNumber": "INV-001",
+    "companyName": "Tech World",
+    "productOrService": [
       {
-        name: "Web Development",
-        quantity: 1,
-        price: 1500.00
+        "description": "Web Development Services",
+        "quantity": 1,
+        "price": 1500
+      },
+      {
+        "description": "UI/UX Design",
+        "quantity": 2,
+        "price": 500
+      },
+      {
+        "description": "Server Maintenance",
+        "quantity": 3,
+        "price": 200
       }
     ],
-    taxPercent: 21,
-    currency: "USD",
-    date: "2025-05-25"
+    "taxPercent": 21,
+    "currency": "USD",
+    "date": "2025-05-25"
   };
 
-  const postData = JSON.stringify(requestBody);
+  const postData = JSON.stringify(testData);
 
   const options = {
     hostname: 'localhost',
@@ -30,7 +40,7 @@ function testInvoiceGeneration() {
   };
 
   console.log('Testing invoice generation...');
-  console.log('Request body:', JSON.stringify(requestBody, null, 2));
+  console.log('Request body:', JSON.stringify(testData, null, 2));
 
   const req = http.request(options, (res) => {
     console.log('Response status:', res.statusCode);

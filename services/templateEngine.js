@@ -328,6 +328,8 @@ const renderTemplate = async (invoiceData) => {
       // Add computed fields
       hasBuyerCompany: !!(invoiceData.buyerCompany && invoiceData.buyerCompany.name),
       hasSellerCompany: !!(invoiceData.sellerCompany && invoiceData.sellerCompany.name),
+      hasBuyer: !!(invoiceData.buyerCompany && invoiceData.buyerCompany.name),
+      hasSeller: !!(invoiceData.sellerCompany && invoiceData.sellerCompany.name),
       hasShipping: parseFloat(invoiceData.shippingAmount) > 0,
       hasServiceFee: parseFloat(invoiceData.serviceFee) > 0,
       hasNotes: !!(invoiceData.notes && invoiceData.notes.trim()),
@@ -337,7 +339,15 @@ const renderTemplate = async (invoiceData) => {
       // Format dates
       formattedDate: invoiceData.date ? new Date(invoiceData.date).toLocaleDateString(locale) : '',
       formattedDueDate: invoiceData.dueDate ? new Date(invoiceData.dueDate).toLocaleDateString(locale) : '',
-      // Add item totals
+      // Add items array with correct field names for templates
+      items: invoiceData.productOrService.map(item => ({
+        name: item.description || item.name || 'Item',
+        description: item.description || '',
+        quantity: item.quantity || 0,
+        price: item.price || 0,
+        lineTotal: (parseFloat(item.quantity) * parseFloat(item.price)).toFixed(2)
+      })),
+      // Keep the original for backward compatibility
       itemsWithTotals: invoiceData.productOrService.map(item => ({
         ...item,
         total: (parseFloat(item.quantity) * parseFloat(item.price)).toFixed(2)
