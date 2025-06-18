@@ -1,13 +1,14 @@
-// PDF Generator for Traditional Node.js Server (Render)
+// PDF Generator for Traditional Node.js Server (Render) with Fallback
 const puppeteer = require('puppeteer');
 
 console.log('PDF Generator loaded. Environment:', {
   NODE_ENV: process.env.NODE_ENV,
   RENDER: process.env.RENDER,
-  isRender: process.env.RENDER === 'true'
+  isRender: process.env.RENDER === 'true',
+  PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR
 });
 
-async function generatePDF(html, options = {}) {
+async function generatePDFWithPuppeteer(html, options = {}) {
   let browser = null;
   let page = null;
 
@@ -30,11 +31,24 @@ async function generatePDF(html, options = {}) {
         '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',
         '--disable-features=TranslateUI',
-        '--disable-ipc-flooding-protection'
+        '--disable-ipc-flooding-protection',
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor'
       ],
       ignoreHTTPSErrors: true,
       timeout: 30000
     };
+    
+    // Try to find Chrome executable path
+    try {
+      const { execSync } = require('child_process');
+      const chromePath = execSync('which google-chrome', { encoding: 'utf8' }).trim();
+      console.log('Found Chrome at:', chromePath);
+      browserConfig.executablePath = chromePath;
+    } catch (chromeError) {
+      console.log('Chrome not found in PATH, using default Puppeteer Chrome');
+      // Let Puppeteer use its bundled Chrome
+    }
     
     console.log('Launching browser with traditional server config');
     browser = await puppeteer.launch(browserConfig);
@@ -108,18 +122,8 @@ async function generatePDF(html, options = {}) {
     return pdfBuffer;
     
   } catch (error) {
-    console.error('PDF generation error:', error);
-    console.error('Error stack:', error.stack);
-    
-    // Provide more specific error messages
-    let errorMessage = error.message;
-    if (error.message.includes('Failed to launch')) {
-      errorMessage = 'Browser launch failed. Check if Chrome is installed on the server.';
-    } else if (error.message.includes('Could not find Chrome')) {
-      errorMessage = 'Chrome executable not found. This may be a server configuration issue.';
-    }
-    
-    throw new Error(`Failed to generate PDF: ${errorMessage}`);
+    console.error('Puppeteer PDF generation failed:', error.message);
+    throw error;
   } finally {
     // Cleanup
     if (page && !page.isClosed()) {
@@ -138,6 +142,27 @@ async function generatePDF(html, options = {}) {
         console.warn('Error closing browser:', closeError.message);
       }
     }
+  }
+}
+
+async function generatePDFWithFallback(html, options = {}) {
+  try {
+    console.log('Trying fallback PDF generation...');
+    const fallbackGenerator = require('./pdfGeneratorFallback');
+    return await fallbackGenerator.generatePDF(html, options);
+  } catch (fallbackError) {
+    console.error('Fallback PDF generation also failed:', fallbackError.message);
+    throw new Error(`All PDF generation methods failed. Puppeteer and fallback both failed.`);
+  }
+}
+
+async function generatePDF(html, options = {}) {
+  try {
+    // Try Puppeteer first
+    return await generatePDFWithPuppeteer(html, options);
+  } catch (puppeteerError) {
+    console.log('Puppeteer failed, trying fallback method...');
+    return await generatePDFWithFallback(html, options);
   }
 }
 
@@ -198,14 +223,14 @@ const healthCheck = async () => {
       status: 'healthy', 
       message: 'PDF generation is working correctly',
       environment: 'Render Server',
-      method: 'Puppeteer with HTML templates'
+      method: 'Puppeteer with fallback'
     };
   } catch (error) {
     return { 
       status: 'unhealthy', 
       message: error.message,
       environment: 'Render Server',
-      method: 'Puppeteer with HTML templates'
+      method: 'Puppeteer with fallback'
     };
   }
 };

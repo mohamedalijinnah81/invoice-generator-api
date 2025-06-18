@@ -25,7 +25,7 @@ Make sure your repository has the following files:
 1. **Push your code to Git repository**
    ```bash
    git add .
-   git commit -m "Configure for Render deployment"
+   git commit -m "Configure for Render deployment with Chrome installation"
    git push origin main
    ```
 
@@ -63,7 +63,7 @@ Make sure your repository has the following files:
 2. **Configure Service**
    - **Name**: `invoice-generator-api`
    - **Environment**: `Node`
-   - **Build Command**: `npm install`
+   - **Build Command**: `npm run build`
    - **Start Command**: `npm start`
    - **Plan**: Free (or paid for better performance)
 
@@ -134,19 +134,26 @@ curl -X POST https://your-app-name.onrender.com/api/generate-invoice \
 
 ### Common Issues
 
-1. **Build Fails**
+1. **Chrome Not Found Error**
+   - The build process now includes `npx puppeteer browsers install chrome`
+   - If Puppeteer fails, the app will automatically use a fallback PDF generator
+   - Check Render logs for build success
+
+2. **Build Fails**
    - Check that all dependencies are in `package.json`
    - Ensure Node.js version is compatible (>=18.0.0)
+   - The build script installs Chrome automatically
 
-2. **PDF Generation Fails**
-   - Check Render logs for Puppeteer errors
-   - Ensure Chrome dependencies are available (should work on Render)
+3. **PDF Generation Fails**
+   - The app has a fallback PDF generator using `html-pdf-node`
+   - Check Render logs for which method is being used
+   - Both Puppeteer and fallback methods are tried
 
-3. **Environment Variables Not Set**
+4. **Environment Variables Not Set**
    - Double-check variable names in Render dashboard
    - Ensure no extra spaces in values
 
-4. **Rate Limiting Issues**
+5. **Rate Limiting Issues**
    - The app is configured with trust proxy for Render
    - Check if you're hitting rate limits
 
@@ -155,6 +162,7 @@ curl -X POST https://your-app-name.onrender.com/api/generate-invoice \
 1. Go to your service in Render dashboard
 2. Click "Logs" tab
 3. Check for any error messages
+4. Look for "Puppeteer failed, trying fallback method" messages
 
 ### Performance Tips
 
@@ -162,12 +170,26 @@ curl -X POST https://your-app-name.onrender.com/api/generate-invoice \
 - **Paid Plans**: Better performance, no spin-down, more resources
 - **Memory**: Consider upgrading if you need more memory for PDF generation
 
+## PDF Generation Methods
+
+The application uses a dual approach for PDF generation:
+
+1. **Primary Method**: Puppeteer with Chrome
+   - Full HTML/CSS template rendering
+   - Best quality and feature support
+   - Requires Chrome to be installed
+
+2. **Fallback Method**: html-pdf-node
+   - Basic HTML to PDF conversion
+   - Works even if Chrome is not available
+   - Limited CSS support but functional
+
 ## Expected Behavior
 
 After successful deployment:
 - ✅ Health check endpoint works
-- ✅ PDF generation with full HTML/CSS templates
-- ✅ No Chrome executable issues
+- ✅ PDF generation works (either Puppeteer or fallback)
+- ✅ No Chrome executable issues (fallback handles this)
 - ✅ Proper rate limiting
 - ✅ Cloudinary integration works
 

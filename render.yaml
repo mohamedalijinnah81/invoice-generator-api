@@ -3,13 +3,17 @@ services:
     name: invoice-generator-api
     env: node
     plan: free
-    buildCommand: npm install
+    buildCommand: npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: RENDER
         value: true
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "false"
+      - key: PUPPETEER_CACHE_DIR
+        value: "/opt/render/.cache/puppeteer"
       # Add your environment variables here:
       # - key: CLOUDINARY_CLOUD_NAME
       #   sync: false
