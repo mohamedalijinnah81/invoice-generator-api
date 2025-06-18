@@ -1,23 +1,24 @@
-# Invoice Generator API - Serverless Version
+# Invoice Generator API
 
-A dynamic, multi-language, template-based invoice generator API optimized for serverless deployment on Vercel.
+A dynamic, multi-language, template-based invoice generator API optimized for deployment on Render. Generate professional PDF invoices with full HTML/CSS template support.
 
 ## Features
 
-- 🚀 **Serverless Architecture** - Optimized for Vercel deployment
-- 📄 **PDF Generation** - Generate professional invoices using Puppeteer
+- 🚀 **Traditional Server Architecture** - Optimized for Render deployment
+- 📄 **PDF Generation** - Generate professional invoices using Puppeteer with fallback
 - 🌍 **Multi-language Support** - 10+ languages supported
 - 🎨 **Multiple Templates** - 5 professional invoice templates
 - ☁️ **Cloud Storage** - Automatic upload to Cloudinary
-- 🔒 **Security** - Rate limiting, CORS, and input validation
+- 🔒 **Security** - Rate limiting, CORS, and comprehensive input validation
 - 📊 **Health Monitoring** - Built-in health checks
+- 🔄 **Fallback Support** - Dual PDF generation methods for reliability
 
 ## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+ 
-- Vercel account
+- Render account
 - Cloudinary account
 
 ### Environment Variables
@@ -38,7 +39,6 @@ CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
 # PDF Generation Configuration
-PDF_TIMEOUT=30000
 ENABLE_WATERMARK=false
 WATERMARK_TEXT=SAMPLE INVOICE
 
@@ -61,33 +61,123 @@ npm run dev
 
 3. The API will be available at `http://localhost:3000`
 
-### Vercel Deployment
+### Render Deployment
 
-1. Install Vercel CLI:
-```bash
-npm i -g vercel
-```
+1. Push your code to Git repository
+2. Connect to Render and create a new Web Service
+3. Set environment variables in Render dashboard
+4. Deploy!
 
-2. Deploy to Vercel:
-```bash
-vercel
-```
+See `RENDER_DEPLOYMENT.md` for detailed deployment instructions.
 
-3. Set environment variables in Vercel dashboard:
-   - Go to your project settings
-   - Navigate to Environment Variables
-   - Add all the variables from the `.env` file above
-
-4. Your API will be deployed at `https://your-project.vercel.app`
-
-## API Endpoints
+## API Documentation
 
 ### Generate Invoice
 ```http
 POST /api/generate-invoice
+Content-Type: application/json
 ```
 
-**Request Body:**
+### Request Parameters
+
+#### **Mandatory Parameters**
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `invoiceNumber` | string | Unique invoice identifier (max 50 chars) | `"INV-2024-001"` |
+| `companyName` | string | Name of the selling company (max 200 chars) | `"Tech Solutions Ltd"` |
+| `productOrService` | array | Array of products/services (1-50 items) | See example below |
+| `taxPercent` | number | Tax percentage (0-100) | `21` |
+| `currency` | string | Currency code | `"USD"` |
+| `date` | string | Invoice date (YYYY-MM-DD format) | `"2024-01-15"` |
+
+#### **Optional Parameters**
+
+| Parameter | Type | Description | Default | Example |
+|-----------|------|-------------|---------|---------|
+| `buyerCompany` | object | Buyer company information | - | See company object below |
+| `sellerCompany` | object | Seller company information | - | See company object below |
+| `shippingAmount` | number | Shipping cost | `0` | `25.50` |
+| `serviceFee` | number | Service fee amount | `0` | `15.00` |
+| `discount` | number | Discount percentage (0-100) | - | `10` |
+| `dueDate` | string | Payment due date (YYYY-MM-DD) | - | `"2024-02-15"` |
+| `companyLogo` | string | Company logo URL | - | `"https://example.com/logo.png"` |
+| `locale` | string | Language/locale | `"en"` | `"es"` |
+| `template` | number | Template number (1-5) | `1` | `2` |
+| `notes` | string | Additional notes (max 1000 chars) | - | `"Payment due within 30 days"` |
+| `paymentTerms` | string | Payment terms (max 500 chars) | - | `"Net 30"` |
+| `watermark` | boolean | Enable watermark | `false` | `true` |
+| `theme` | string | Color theme | `"light"` | `"dark"` |
+| `customFields` | object | Custom fields (max 10) | - | `{"field1": "value1"}` |
+
+### Data Structures
+
+#### **Product/Service Item Object**
+```json
+{
+  "name": "string (required, max 200 chars)",
+  "quantity": "number (required, positive)",
+  "price": "number (required, positive)",
+  "description": "string (optional, max 500 chars)"
+}
+```
+
+#### **Company Object**
+```json
+{
+  "name": "string (required, max 200 chars)",
+  "address": "string (optional, max 500 chars)",
+  "taxNumber": "string (optional, max 50 chars)",
+  "vatNumber": "string (optional, max 50 chars)",
+  "bankAccount": "string (optional, max 100 chars)",
+  "phone": "string (optional, max 20 chars)",
+  "email": "string (optional, valid email)",
+  "website": "string (optional, valid URL)"
+}
+```
+
+### Supported Values
+
+#### **Currencies**
+- `USD` - US Dollar
+- `EUR` - Euro
+- `GBP` - British Pound
+- `CAD` - Canadian Dollar
+- `AUD` - Australian Dollar
+- `JPY` - Japanese Yen
+- `CHF` - Swiss Franc
+- `SEK` - Swedish Krona
+- `NOK` - Norwegian Krone
+- `DKK` - Danish Krone
+
+#### **Locales (Languages)**
+- `en` - English
+- `es` - Spanish
+- `fr` - French
+- `de` - German
+- `nl` - Dutch
+- `it` - Italian
+- `pt` - Portuguese
+- `sv` - Swedish
+- `no` - Norwegian
+- `da` - Danish
+
+#### **Templates**
+- `1` - Professional Template 1
+- `2` - Professional Template 2
+- `3` - Professional Template 3
+- `4` - Professional Template 4
+- `5` - Professional Template 5
+
+#### **Themes**
+- `light` - Light theme
+- `dark` - Dark theme
+- `blue` - Blue theme
+- `green` - Green theme
+
+### Request Examples
+
+#### **Minimal Request**
 ```json
 {
   "invoiceNumber": "INV-001",
@@ -101,160 +191,171 @@ POST /api/generate-invoice
   ],
   "taxPercent": 21,
   "currency": "USD",
-  "date": "2025-01-24",
-  "locale": "en",
-  "template": 1
+  "date": "2024-01-15"
 }
 ```
 
-**Response:**
+#### **Complete Request**
 ```json
 {
-  "success": true,
-  "invoiceUrl": "https://res.cloudinary.com/...",
-  "invoiceNumber": "INV-001",
-  "total": "1815.00",
-  "currency": "USD",
-  "generatedAt": "2025-01-24T10:30:00.000Z",
-  "fileSize": "245 KB"
-}
-```
-
-### Get Templates
-```http
-GET /api/templates
-```
-
-### Get Locales
-```http
-GET /api/locales
-```
-
-### Health Check
-```http
-GET /health
-```
-
-### API Documentation
-```http
-GET /api/docs
-```
-
-## Supported Features
-
-### Languages
-- English (en)
-- Spanish (es)
-- French (fr)
-- German (de)
-- Dutch (nl)
-- Italian (it)
-- Portuguese (pt)
-- Swedish (sv)
-- Norwegian (no)
-- Danish (da)
-
-### Currencies
-- USD, EUR, GBP, CAD, AUD
-- JPY, CHF, SEK, NOK, DKK
-
-### Templates
-- Template 1-5: Professional invoice layouts
-
-## Serverless Optimizations
-
-This version has been optimized for serverless deployment:
-
-- **Puppeteer Core**: Uses `puppeteer-core` with `@sparticuz/chromium` for serverless compatibility
-- **No Persistent State**: Removed browser instance persistence
-- **Optimized Timeouts**: Reduced timeouts for serverless execution
-- **Memory Management**: Improved cleanup and memory usage
-- **Error Handling**: Enhanced error handling for serverless environment
-
-## Configuration
-
-### Vercel Configuration
-
-The `vercel.json` file is pre-configured for optimal serverless deployment:
-
-```json
-{
-  "functions": {
-    "api/[...all].js": {
-      "maxDuration": 30
+  "invoiceNumber": "INV-2024-002",
+  "companyName": "Tech Solutions Ltd",
+  "productOrService": [
+    {
+      "name": "Website Design",
+      "quantity": 1,
+      "price": 2000,
+      "description": "Custom website design with responsive layout"
+    },
+    {
+      "name": "SEO Optimization",
+      "quantity": 3,
+      "price": 300,
+      "description": "Monthly SEO services"
     }
+  ],
+  "taxPercent": 21,
+  "currency": "EUR",
+  "date": "2024-01-15",
+  "dueDate": "2024-02-15",
+  "locale": "en",
+  "template": 2,
+  "buyerCompany": {
+    "name": "Client Corp",
+    "address": "123 Business St, City, Country",
+    "taxNumber": "TAX123456",
+    "email": "billing@clientcorp.com"
+  },
+  "sellerCompany": {
+    "name": "Tech Solutions Ltd",
+    "address": "456 Tech Ave, Tech City, Country",
+    "vatNumber": "VAT789012",
+    "phone": "+1-555-0123",
+    "email": "billing@techsolutions.com",
+    "website": "https://techsolutions.com"
+  },
+  "shippingAmount": 25.50,
+  "serviceFee": 15.00,
+  "discount": 10,
+  "companyLogo": "https://techsolutions.com/logo.png",
+  "notes": "Payment due within 30 days. Late payments subject to 2% monthly fee.",
+  "paymentTerms": "Net 30",
+  "watermark": false,
+  "theme": "light",
+  "customFields": {
+    "projectCode": "PRJ-2024-001",
+    "department": "Marketing"
   }
 }
 ```
 
-### Project Structure
+### Response Format
 
-```
-invoice-generator-api/
-├── api/
-│   └── [...all].js          # Vercel serverless function entry point
-├── routes/
-│   └── invoice.js           # Invoice API routes
-├── services/
-│   ├── pdfGenerator.js      # PDF generation service
-│   ├── templateEngine.js    # Template rendering service
-│   └── uploadToCloudinary.js # Cloudinary upload service
-├── templates/               # HTML invoice templates
-├── locales/                 # Translation files
-├── utils/
-│   └── validation.js        # Input validation
-├── app.js                   # Express app (for local development)
-├── package.json
-└── vercel.json             # Vercel configuration
+#### **Success Response**
+```json
+{
+  "success": true,
+  "invoiceUrl": "https://res.cloudinary.com/your-cloud/...",
+  "invoiceNumber": "INV-2024-002",
+  "total": "2481.00",
+  "currency": "EUR",
+  "generatedAt": "2024-01-15T10:30:00.000Z",
+  "fileSize": "245 KB"
+}
 ```
 
-### Environment Variables in Vercel
+#### **Error Response**
+```json
+{
+  "success": false,
+  "error": "Validation Error",
+  "message": "Invoice number is required",
+  "field": "invoiceNumber"
+}
+```
 
-Set these in your Vercel project dashboard:
+### Other Endpoints
 
-1. Go to Project Settings
-2. Navigate to Environment Variables
-3. Add each variable with the appropriate value
-4. Deploy to apply changes
+#### **Get Available Templates**
+```http
+GET /api/templates
+```
 
-## Troubleshooting
+#### **Get Supported Locales**
+```http
+GET /api/locales
+```
 
-### Common Issues
+#### **Health Check**
+```http
+GET /health
+```
 
-1. **PDF Generation Timeout**
-   - Increase `PDF_TIMEOUT` environment variable
-   - Check if content is too complex
+#### **Test PDF Generation**
+```http
+GET /api/test
+```
 
-2. **Cloudinary Upload Failures**
-   - Verify Cloudinary credentials
-   - Check file size limits
+## Validation Rules
 
-3. **Rate Limiting**
-   - Adjust rate limit settings in environment variables
-   - Check if requests are coming from the same IP
+### **General Rules**
+- All string fields are automatically trimmed
+- Numbers support up to 2 decimal places
+- Dates must be in YYYY-MM-DD format
+- URLs must be valid HTTP/HTTPS URLs
+- Email addresses must be valid format
 
-### Performance Tips
+### **Business Rules**
+- Due date cannot be before invoice date
+- Invoice date cannot be more than 1 year in the future
+- Invoice total cannot exceed $1,000,000
+- At least one product/service item is required
+- Maximum 50 items per invoice
 
-- Use appropriate template sizes
-- Optimize invoice content
-- Consider using CDN for static assets
-- Monitor function execution times
+### **Field Limits**
+- Invoice number: 1-50 characters
+- Company name: 1-200 characters
+- Product name: 1-200 characters
+- Product description: 0-500 characters
+- Notes: 0-1000 characters
+- Payment terms: 0-500 characters
+- Company address: 0-500 characters
+- Tax/VAT numbers: 0-50 characters
 
-## Contributing
+## Error Handling
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+The API returns appropriate HTTP status codes:
 
-## License
+- `200` - Success
+- `400` - Validation error (with field details)
+- `429` - Rate limit exceeded
+- `500` - Server error
 
-MIT License - see LICENSE file for details
+## Rate Limiting
+
+- **Free Plan**: 100 requests per 15 minutes per IP
+- **Production**: Configurable via environment variables
+
+## PDF Generation
+
+The API uses a dual approach for PDF generation:
+
+1. **Primary Method**: Puppeteer with Chrome
+   - Full HTML/CSS template rendering
+   - Best quality and feature support
+
+2. **Fallback Method**: html-pdf-node
+   - Basic HTML to PDF conversion
+   - Works even if Chrome is not available
+
+## Deployment
+
+This API is optimized for deployment on Render. See `RENDER_DEPLOYMENT.md` for detailed deployment instructions.
 
 ## Support
 
-For support and questions:
-- Create an issue on GitHub
-- Check the API documentation at `/api/docs`
-- Review the health check at `/health` 
+For issues and questions:
+1. Check the health endpoint: `/health`
+2. Test PDF generation: `/api/test`
+3. Review Render logs for detailed error messages
+4. Verify environment variables are set correctly 
