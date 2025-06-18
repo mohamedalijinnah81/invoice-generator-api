@@ -9,7 +9,7 @@ const invoiceRoutes = require('./routes/invoice');
 
 const app = express();
 
-// Trust proxy for Vercel (fixes rate limiting issues)
+// Trust proxy for Render (fixes rate limiting issues)
 app.set('trust proxy', 1);
 
 // Security middleware
@@ -19,7 +19,7 @@ app.use(cors({
   credentials: false
 }));
 
-// Rate limiting (optimized for serverless)
+// Rate limiting (optimized for traditional server)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production
@@ -39,10 +39,8 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files (for serverless, this will be handled by Vercel)
-if (process.env.NODE_ENV !== 'production') {
-  app.use('/static', express.static(path.join(__dirname, 'public')));
-}
+// Static files
+app.use('/static', express.static(path.join(__dirname, 'public')));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -52,7 +50,7 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     version: process.env.npm_package_version || '1.0.0',
     environment: process.env.NODE_ENV || 'development',
-    platform: 'serverless'
+    platform: 'Render Server'
   });
 });
 
@@ -70,8 +68,8 @@ app.get('/', (req, res) => {
   res.json({
     name: 'Invoice Generator API',
     version: '1.0.0',
-    description: 'Dynamic, Multi-language, Template-based Invoice Generator (Serverless)',
-    platform: 'Vercel Serverless',
+    description: 'Dynamic, Multi-language, Template-based Invoice Generator (Render Server)',
+    platform: 'Render Server',
     endpoints: {
       'POST /api/generate-invoice': 'Generate invoice PDF',
       'GET /health': 'Health check',
@@ -139,16 +137,15 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Serverless export for Vercel
+// Export the Express app
 module.exports = app;
 
-// Only start server if not in serverless environment
-if (process.env.NODE_ENV !== 'production' || process.env.VERCEL !== '1') {
-  const PORT = process.env.PORT || 4000;
-  
-  app.listen(PORT, () => {
-    console.log(`🚀 Invoice Generator API running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🌐 Access: http://localhost:${PORT}`);
-  });
-}
+// Start server for traditional deployment
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Invoice Generator API running on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Platform: Render Server`);
+  console.log(`🔗 Access: http://localhost:${PORT}`);
+});

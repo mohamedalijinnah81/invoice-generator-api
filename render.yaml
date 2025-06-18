@@ -1,9 +1,25 @@
 services:
   - type: web
     name: invoice-generator-api
-    runtime: node
+    env: node
+    plan: free
     buildCommand: npm install
-    startCommand: node app.js  # Or replace with your actual start script, like: npm start
+    startCommand: npm start
     envVars:
-      - key: PORT
-        value: false
+      - key: NODE_ENV
+        value: production
+      - key: RENDER
+        value: true
+      # Add your environment variables here:
+      # - key: CLOUDINARY_CLOUD_NAME
+      #   sync: false
+      # - key: CLOUDINARY_API_KEY
+      #   sync: false
+      # - key: CLOUDINARY_API_SECRET
+      #   sync: false
+      # - key: ALLOWED_ORIGINS
+      #   value: "*"
+      # - key: ENABLE_WATERMARK
+      #   value: "false"
+    healthCheckPath: /health
+    autoDeploy: true

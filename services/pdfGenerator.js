@@ -1,11 +1,10 @@
-// PDF Generator for Vercel Serverless with proper HTML template rendering
-const puppeteer = require('puppeteer-core');
-const chromium = require('chrome-aws-lambda');
+// PDF Generator for Traditional Node.js Server (Render)
+const puppeteer = require('puppeteer');
 
 console.log('PDF Generator loaded. Environment:', {
-  VERCEL: process.env.VERCEL,
   NODE_ENV: process.env.NODE_ENV,
-  isVercel: process.env.VERCEL === '1'
+  RENDER: process.env.RENDER,
+  isRender: process.env.RENDER === 'true'
 });
 
 async function generatePDF(html, options = {}) {
@@ -13,22 +12,31 @@ async function generatePDF(html, options = {}) {
   let page = null;
 
   try {
-    console.log('Starting PDF generation with chrome-aws-lambda...');
+    console.log('Starting PDF generation with Puppeteer...');
     
-    // Get Chromium executable path
-    const executablePath = await chromium.executablePath;
-    console.log('Chromium executable path:', executablePath);
-    
-    // Browser configuration for serverless
+    // Browser configuration for traditional server deployment
     const browserConfig = {
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath: executablePath,
-      headless: chromium.headless,
-      ignoreHTTPSErrors: true
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-extensions',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-features=TranslateUI',
+        '--disable-ipc-flooding-protection'
+      ],
+      ignoreHTTPSErrors: true,
+      timeout: 30000
     };
     
-    console.log('Launching browser with chrome-aws-lambda config');
+    console.log('Launching browser with traditional server config');
     browser = await puppeteer.launch(browserConfig);
     console.log('Browser launched successfully');
     
@@ -105,12 +113,10 @@ async function generatePDF(html, options = {}) {
     
     // Provide more specific error messages
     let errorMessage = error.message;
-    if (error.message.includes('libnss3.so')) {
-      errorMessage = 'System libraries missing. This is a Vercel environment issue.';
-    } else if (error.message.includes('Failed to launch')) {
-      errorMessage = 'Browser launch failed. Check executable path and permissions.';
+    if (error.message.includes('Failed to launch')) {
+      errorMessage = 'Browser launch failed. Check if Chrome is installed on the server.';
     } else if (error.message.includes('Could not find Chrome')) {
-      errorMessage = 'Chrome executable not found. This may be a serverless environment limitation.';
+      errorMessage = 'Chrome executable not found. This may be a server configuration issue.';
     }
     
     throw new Error(`Failed to generate PDF: ${errorMessage}`);
@@ -177,7 +183,7 @@ const healthCheck = async () => {
       <body>
         <div class="header">
           <h1>Test Invoice</h1>
-          <p>Environment: ${process.env.VERCEL === '1' ? 'Vercel Serverless' : 'Local Development'}</p>
+          <p>Environment: ${process.env.RENDER === 'true' ? 'Render Server' : 'Local Development'}</p>
         </div>
         <div class="content">
           <h2>Test Content</h2>
@@ -191,15 +197,15 @@ const healthCheck = async () => {
     return { 
       status: 'healthy', 
       message: 'PDF generation is working correctly',
-      environment: 'Vercel Serverless',
-      method: 'chrome-aws-lambda with HTML templates'
+      environment: 'Render Server',
+      method: 'Puppeteer with HTML templates'
     };
   } catch (error) {
     return { 
       status: 'unhealthy', 
       message: error.message,
-      environment: 'Vercel Serverless',
-      method: 'chrome-aws-lambda with HTML templates'
+      environment: 'Render Server',
+      method: 'Puppeteer with HTML templates'
     };
   }
 };
