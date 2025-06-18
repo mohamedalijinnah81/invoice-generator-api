@@ -23,35 +23,25 @@ module.exports = async (req, res) => {
     
     console.log('Environment info:', envInfo);
     
-    // Test PDF generation
+    // Test PDF generation with simple HTML
     const testHtml = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Test PDF</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 40px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .content { margin: 20px 0; }
-        </style>
+        <title>Test Invoice</title>
       </head>
       <body>
-        <div class="header">
-          <h1>PDF Generation Test</h1>
-          <p>Environment: ${envInfo.isVercel ? 'Vercel Serverless' : 'Local Development'}</p>
-        </div>
-        
-        <div class="content">
-          <h2>Test Content</h2>
-          <p>This is a test PDF generated on ${envInfo.timestamp}</p>
-          <p>If you can see this PDF, the PDF generation is working correctly!</p>
-        </div>
+        <h1>Test Invoice</h1>
+        <p>This is a test invoice generated on ${envInfo.timestamp}</p>
+        <p>Environment: ${envInfo.isVercel ? 'Vercel Serverless' : 'Local Development'}</p>
+        <p>If you can see this PDF, the Chrome-free PDF generation is working correctly!</p>
+        <p>This PDF was generated using pdf-lib instead of Puppeteer to avoid Chrome dependency issues in Vercel serverless functions.</p>
       </body>
       </html>
     `;
     
-    console.log('Generating test PDF...');
+    console.log('Generating test PDF with pdf-lib...');
     const pdfBuffer = await generatePDF(testHtml, { format: 'A4' });
     console.log('Test PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     
@@ -72,7 +62,8 @@ module.exports = async (req, res) => {
         NODE_ENV: process.env.NODE_ENV,
         isVercel: process.env.VERCEL === '1'
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      method: 'pdf-lib (Chrome-free)'
     });
   }
 }; 

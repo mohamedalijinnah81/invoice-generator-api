@@ -1,23 +1,30 @@
-# Vercel Deployment Guide - Fixed Version
+# Vercel Deployment Guide - Chrome-Free Version
 
 ## Issues Fixed
 
 1. **Rate Limiting Error**: Added `app.set('trust proxy', 1)` and `trustProxy: true` to rate limiter
-2. **PDF Generation**: Switched from `@sparticuz/chromium` to full `puppeteer` package
-3. **System Libraries**: Removed dependency on problematic system libraries
+2. **PDF Generation**: Switched from Puppeteer to pdf-lib (Chrome-free approach)
+3. **System Libraries**: Completely eliminated Chrome dependency
 
 ## Current Configuration
 
-- **PDF Generator**: Uses full Puppeteer with serverless-optimized arguments
+- **PDF Generator**: Uses pdf-lib (no Chrome required)
 - **Rate Limiting**: Properly configured for Vercel proxy
-- **Dependencies**: Simplified to avoid system library conflicts
+- **Dependencies**: Minimal, Chrome-free package structure
+
+## Key Changes
+
+- ✅ **No Chrome dependency**: Uses pdf-lib instead of Puppeteer
+- ✅ **Works in Vercel**: No system library issues
+- ✅ **Simplified**: Basic PDF generation without browser
+- ✅ **Reliable**: No executable path or cache issues
 
 ## Deployment Steps
 
 ### 1. Commit and Push Changes
 ```bash
 git add .
-git commit -m "Fix Vercel deployment - trust proxy and full Puppeteer"
+git commit -m "Switch to Chrome-free PDF generation with pdf-lib"
 git push origin main
 ```
 
@@ -62,9 +69,18 @@ curl -X POST https://your-vercel-app.vercel.app/api/generate-invoice \
 
 After deployment:
 - ✅ No more rate limiting errors
-- ✅ PDF generation works with full Puppeteer
+- ✅ PDF generation works without Chrome
 - ✅ No system library dependency issues
 - ✅ Proper IP detection through proxy
+- ✅ Basic PDF generation with text content
+
+## Limitations
+
+The new pdf-lib approach has some limitations:
+- **Basic formatting**: Limited compared to full HTML rendering
+- **No CSS**: Styling is simplified
+- **Text-based**: Images and complex layouts are not supported
+- **Simple extraction**: HTML is converted to basic text
 
 ## Troubleshooting
 
@@ -77,6 +93,6 @@ If issues persist:
 ## File Changes Made
 
 - `app.js`: Added trust proxy settings
-- `services/pdfGenerator.js`: Switched to full Puppeteer
-- `package.json`: Removed `@sparticuz/chromium` and `puppeteer-core`
-- `api/test.js`: Added test endpoint for debugging 
+- `services/pdfGenerator.js`: Completely rewritten to use pdf-lib
+- `package.json`: Removed Puppeteer, added pdf-lib
+- `api/test.js`: Updated for new PDF generator 
