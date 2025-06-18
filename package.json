@@ -6,9 +6,7 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "build": "echo 'Build completed'",
-    "test": "echo 'Tests not implemented yet'",
-    "vercel-build": "echo 'Vercel build completed'"
+    "test": "echo 'Tests not implemented yet'"
   },
   "keywords": [
     "invoice",
