@@ -1,21 +1,21 @@
 {
   "functions": {
-    "app.js": {
+    "api/[...all].js": {
       "maxDuration": 30
     }
   },
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "app.js"
+      "dest": "/api/index.js"
     },
     {
       "src": "/health",
-      "dest": "app.js"
+      "dest": "/api/index.js"
     },
     {
       "src": "/(.*)",
-      "dest": "app.js"
+      "dest": "/api/index.js"
     }
   ],
   "env": {

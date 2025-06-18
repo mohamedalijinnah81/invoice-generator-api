@@ -165,7 +165,7 @@ GET /api/docs
 
 This version has been optimized for serverless deployment:
 
-- **Puppeteer Core**: Uses `puppeteer-core` with `chrome-aws-lambda` for serverless compatibility
+- **Puppeteer Core**: Uses `puppeteer-core` with `@sparticuz/chromium` for serverless compatibility
 - **No Persistent State**: Removed browser instance persistence
 - **Optimized Timeouts**: Reduced timeouts for serverless execution
 - **Memory Management**: Improved cleanup and memory usage
@@ -179,36 +179,33 @@ The `vercel.json` file is pre-configured for optimal serverless deployment:
 
 ```json
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "app.js",
-      "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "app.js"
-    },
-    {
-      "src": "/health",
-      "dest": "app.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "app.js"
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
-    "app.js": {
+    "api/[...all].js": {
       "maxDuration": 30
     }
   }
 }
+```
+
+### Project Structure
+
+```
+invoice-generator-api/
+├── api/
+│   └── [...all].js          # Vercel serverless function entry point
+├── routes/
+│   └── invoice.js           # Invoice API routes
+├── services/
+│   ├── pdfGenerator.js      # PDF generation service
+│   ├── templateEngine.js    # Template rendering service
+│   └── uploadToCloudinary.js # Cloudinary upload service
+├── templates/               # HTML invoice templates
+├── locales/                 # Translation files
+├── utils/
+│   └── validation.js        # Input validation
+├── app.js                   # Express app (for local development)
+├── package.json
+└── vercel.json             # Vercel configuration
 ```
 
 ### Environment Variables in Vercel
